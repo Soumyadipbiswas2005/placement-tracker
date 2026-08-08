@@ -25,7 +25,7 @@ public class TopicController {
         return ResponseEntity.ok(topicService.getAllTopics());
     }
 
-    /* Adding something */
+    /* Adding something new for dummy */
 
     /** GET /api/topics/{id} — return single topic */
     @GetMapping("/topics/{id}")
