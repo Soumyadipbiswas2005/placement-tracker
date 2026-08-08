@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Placement Prep Tracker | On-Campus Preparation Checklist</title>
+  <meta name="description" content="Track your on-campus placement preparation progress across Aptitude, Core CS, DSA, and HR Interview topics." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════════════
+       NAVBAR
+       ══════════════════════════════════════════════ -->
+  <nav class="navbar" role="navigation" aria-label="Main navigation">
+    <a href="#" class="nav-brand">
+      <div class="brand-icon">🎯</div>
+      <span>Placement Prep Tracker</span>
+    </a>
+    <div class="nav-actions">
+      <button id="themeToggle" class="theme-toggle" title="Toggle theme" aria-label="Toggle dark/light theme">
+        ☀️
+      </button>
+    </div>
+  </nav>
+
+  <!-- ══════════════════════════════════════════════
+       MAIN CONTENT
+       ══════════════════════════════════════════════ -->
+  <main class="container">
+
+    <!-- Hero Header -->
+    <div class="dashboard-header">
+      <h1>On-Campus Placement Prep</h1>
+      <p>Track every topic · Record completion dates · Never miss a concept</p>
+    </div>
+
+    <!-- Progress Rings Grid -->
+    <div class="progress-grid" role="region" aria-label="Progress by category">
+
+      <!-- Aptitude -->
+      <div class="progress-card">
+        <div class="ring-wrap ring-aptitude" aria-label="Aptitude progress">
+          <svg width="90" height="90" viewBox="0 0 90 90">
+            <circle class="ring-bg" cx="45" cy="45" r="39" />
+            <circle class="ring-fill" cx="45" cy="45" r="39" />
+          </svg>
+          <div class="ring-label">
+            <span class="ring-pct">0%</span>
+            <span class="ring-done">0/0</span>
+          </div>
+        </div>
+        <span class="card-title">Aptitude</span>
+        <span class="card-sub">Quant · Reasoning · Verbal</span>
+      </div>
+
+      <!-- Core CS -->
+      <div class="progress-card">
+        <div class="ring-wrap ring-corecs" aria-label="Core CS progress">
+          <svg width="90" height="90" viewBox="0 0 90 90">
+            <circle class="ring-bg" cx="45" cy="45" r="39" />
+            <circle class="ring-fill" cx="45" cy="45" r="39" />
+          </svg>
+          <div class="ring-label">
+            <span class="ring-pct">0%</span>
+            <span class="ring-done">0/0</span>
+          </div>
+        </div>
+        <span class="card-title">Core CS</span>
+        <span class="card-sub">CN · DBMS · OOPs · OS</span>
+      </div>
+
+      <!-- Coding & DSA -->
+      <div class="progress-card">
+        <div class="ring-wrap ring-dsa" aria-label="Coding and DSA progress">
+          <svg width="90" height="90" viewBox="0 0 90 90">
+            <circle class="ring-bg" cx="45" cy="45" r="39" />
+            <circle class="ring-fill" cx="45" cy="45" r="39" />
+          </svg>
+          <div class="ring-label">
+            <span class="ring-pct">0%</span>
+            <span class="ring-done">0/0</span>
+          </div>
+        </div>
+        <span class="card-title">Coding & DSA</span>
+        <span class="card-sub">DS · Algorithms · Questions</span>
+      </div>
+
+      <!-- HR Interview -->
+      <div class="progress-card">
+        <div class="ring-wrap ring-hr" aria-label="HR Interview progress">
+          <svg width="90" height="90" viewBox="0 0 90 90">
+            <circle class="ring-bg" cx="45" cy="45" r="39" />
+            <circle class="ring-fill" cx="45" cy="45" r="39" />
+          </svg>
+          <div class="ring-label">
+            <span class="ring-pct">0%</span>
+            <span class="ring-done">0/0</span>
+          </div>
+        </div>
+        <span class="card-title">HR Interview</span>
+        <span class="card-sub">Behavioural Questions</span>
+      </div>
+
+    </div><!-- /.progress-grid -->
+
+    <!-- Overall Progress Banner -->
+    <div class="overall-banner" role="region" aria-label="Overall progress">
+      <div class="banner-left">
+        <span class="banner-label">Overall Progress</span>
+        <span class="banner-value" id="overallPct">0%</span>
+      </div>
+      <div class="banner-bar-wrap">
+        <div class="banner-bar">
+          <div class="banner-bar-fill" id="overallBarFill"></div>
+        </div>
+      </div>
+      <span class="banner-topics" id="overallCount">0 / 0 topics</span>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar" role="search">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input
+          type="search"
+          id="searchInput"
+          placeholder="Search topics..."
+          autocomplete="off"
+          aria-label="Search topics"
+        />
+      </div>
+      <div class="filter-btns" role="group" aria-label="Filter topics">
+        <button class="filter-btn active" data-filter="all"     id="filterAll">All</button>
+        <button class="filter-btn"        data-filter="done"    id="filterDone">✅ Done</button>
+        <button class="filter-btn"        data-filter="pending" id="filterPending">⏳ Pending</button>
+      </div>
+    </div>
+
+    <!-- Topics Container -->
+    <div id="topicsContainer" role="main" aria-label="Topics checklist"></div>
+
+    <!-- No results -->
+    <div id="noResults" class="no-results" aria-live="polite">
+      No topics match your search. Try a different keyword.
+    </div>
+
+  </main><!-- /.container -->
+
+  <!-- ══════════════════════════════════════════════
+       NOTES MODAL
+       ══════════════════════════════════════════════ -->
+  <div id="notesModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <div id="modalTitle" class="modal-title">📝 Personal Notes</div>
+          <div id="modalTopicName" class="modal-topic-name"></div>
+        </div>
+        <button class="modal-close" id="modalClose" aria-label="Close notes modal">✕</button>
+      </div>
+      <textarea
+        id="notesTextarea"
+        placeholder="Add your notes, key points, formulas, or resources here…"
+        aria-label="Notes textarea"
+      ></textarea>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="modalCancel">Cancel</button>
+        <button class="btn btn-primary" id="modalSave">Save Notes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
