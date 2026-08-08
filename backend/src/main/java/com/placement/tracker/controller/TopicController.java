@@ -24,8 +24,11 @@ public class TopicController {
     public ResponseEntity<List<Topic>> getAllTopics() {
         return ResponseEntity.ok(topicService.getAllTopics());
     }
-
-    /* Adding something */
+    
+    @PostMapping("/topics")
+    public ResponseEntity<List<Topic>> getAllTopicsByPost() {
+        return ResponseEntity.ok(topicService.getAllTopics());
+    }
 
     /** GET /api/topics/{id} — return single topic */
     @GetMapping("/topics/{id}")
