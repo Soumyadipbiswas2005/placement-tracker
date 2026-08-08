@@ -1,9 +1,13 @@
 package com.placement.tracker.controller;
 
 import com.placement.tracker.dto.NotesRequest;
+import com.placement.tracker.dto.ReorderItem;
+import com.placement.tracker.dto.RenameRequest;
 import com.placement.tracker.dto.StatsResponse;
+import com.placement.tracker.dto.TopicCreateRequest;
 import com.placement.tracker.entity.Topic;
 import com.placement.tracker.service.TopicService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,10 +29,23 @@ public class TopicController {
         return ResponseEntity.ok(topicService.getAllTopics());
     }
 
-    /* Adding something new for dummy */
-    @PostMapping("/topics")
-    public ResponseEntity<List<Topic>> getAllTopicsByPost() {
-        return ResponseEntity.ok(topicService.getAllTopics());
+    /** POST /api/topics/create — create a new topic */
+    @PostMapping("/topics/create")
+    public ResponseEntity<Topic> createTopic(@RequestBody TopicCreateRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(topicService.createTopic(request));
+    }
+
+    /** DELETE /api/topics/{id} — delete a topic */
+    @DeleteMapping("/topics/{id}")
+    public ResponseEntity<Void> deleteTopic(@PathVariable Long id) {
+        topicService.deleteTopic(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** PUT /api/topics/reorder — bulk update displayOrder */
+    @PutMapping("/topics/reorder")
+    public ResponseEntity<List<Topic>> reorderTopics(@RequestBody List<ReorderItem> items) {
+        return ResponseEntity.ok(topicService.reorderTopics(items));
     }
 
     /** GET /api/topics/{id} — return single topic */
@@ -51,6 +68,14 @@ public class TopicController {
             @PathVariable Long id,
             @RequestBody NotesRequest request) {
         return ResponseEntity.ok(topicService.updateNotes(id, request.getNotes()));
+    }
+
+    /** PUT /api/topics/{id}/rename — rename a topic */
+    @PutMapping("/topics/{id}/rename")
+    public ResponseEntity<Topic> renameTopic(
+            @PathVariable Long id,
+            @RequestBody RenameRequest request) {
+        return ResponseEntity.ok(topicService.renameTopic(id, request.getName()));
     }
 
     /** GET /api/stats — return overall and per-category completion stats */

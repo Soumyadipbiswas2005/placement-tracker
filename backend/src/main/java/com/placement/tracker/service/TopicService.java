@@ -1,6 +1,8 @@
 package com.placement.tracker.service;
 
+import com.placement.tracker.dto.ReorderItem;
 import com.placement.tracker.dto.StatsResponse;
+import com.placement.tracker.dto.TopicCreateRequest;
 import com.placement.tracker.entity.Topic;
 import com.placement.tracker.repository.TopicRepository;
 import org.springframework.stereotype.Service;
@@ -44,6 +46,45 @@ public class TopicService {
     public Topic updateNotes(Long id, String notes) {
         Topic topic = getTopicById(id);
         topic.setNotes(notes);
+        return topicRepository.save(topic);
+    }
+
+    /** Create a new topic, appended at the end of the current display order. */
+    public Topic createTopic(TopicCreateRequest request) {
+        int maxOrder = topicRepository.findAllByOrderByDisplayOrderAsc()
+                .stream()
+                .mapToInt(Topic::getDisplayOrder)
+                .max()
+                .orElse(0);
+        Topic topic = new Topic(
+                request.getName().trim(),
+                request.getCategory().trim(),
+                request.getSubcategory().trim(),
+                maxOrder + 1
+        );
+        return topicRepository.save(topic);
+    }
+
+    /** Delete a topic by ID. */
+    public void deleteTopic(Long id) {
+        Topic topic = getTopicById(id); // throws if not found
+        topicRepository.delete(topic);
+    }
+
+    /** Bulk-update displayOrder for a list of {id, displayOrder} pairs. */
+    public List<Topic> reorderTopics(List<ReorderItem> items) {
+        items.forEach(item -> {
+            Topic topic = getTopicById(item.getId());
+            topic.setDisplayOrder(item.getDisplayOrder());
+            topicRepository.save(topic);
+        });
+        return topicRepository.findAllByOrderByDisplayOrderAsc();
+    }
+
+    /** Rename a topic. */
+    public Topic renameTopic(Long id, String name) {
+        Topic topic = getTopicById(id);
+        topic.setName(name.trim());
         return topicRepository.save(topic);
     }
 

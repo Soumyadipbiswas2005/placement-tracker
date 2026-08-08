@@ -682,6 +682,184 @@ body.light .toast {
 }
 
 /* ══════════════════════════════════════════════════════
+   TOOLBAR ACTIONS (Add Topic / Edit Mode)
+   ══════════════════════════════════════════════════════ */
+.toolbar-actions {
+  display: flex; gap: 8px; align-items: center; flex-shrink: 0;
+}
+
+.btn-add {
+  background: linear-gradient(135deg, #a78bfa, #38bdf8);
+  color: #fff;
+  border: none;
+  font-size: 0.82rem;
+  padding: 8px 16px;
+  white-space: nowrap;
+}
+.btn-add:hover { opacity: 0.88; transform: translateY(-1px); }
+
+.btn-edit {
+  background: var(--bg-card);
+  border-color: var(--border);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  padding: 8px 16px;
+  white-space: nowrap;
+}
+.btn-edit:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+.btn-edit.active {
+  background: rgba(251,146,60,0.12);
+  border-color: #fb923c;
+  color: #fb923c;
+}
+
+.btn-danger {
+  background: rgba(239,68,68,0.85);
+  color: #fff;
+  border-color: transparent;
+}
+.btn-danger:hover { background: rgba(239,68,68,1); transform: translateY(-1px); }
+
+/* ══════════════════════════════════════════════════════
+   DRAG HANDLE & SORTABLEJS
+   ══════════════════════════════════════════════════════ */
+.drag-handle {
+  width: 20px; flex-shrink: 0;
+  color: var(--text-muted);
+  cursor: grab;
+  font-size: 1rem;
+  display: none;
+  align-items: center; justify-content: center;
+  transition: color 0.2s;
+  user-select: none;
+  line-height: 1;
+  letter-spacing: -1px;
+}
+.drag-handle:active { cursor: grabbing; }
+.drag-handle:hover { color: var(--text-primary); }
+
+/* Show drag handle only in edit mode */
+body.edit-mode .drag-handle { display: flex; }
+
+/* SortableJS Visuals (Spotify-like smooth queue) */
+.sortable-ghost {
+  opacity: 0.2;
+  background: rgba(167,139,250,0.1);
+  border: 1px dashed var(--c-aptitude);
+}
+.sortable-drag {
+  opacity: 1 !important;
+  background: var(--bg-secondary) !important;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.6) !important;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-hover) !important;
+  transform: scale(1.02);
+  cursor: grabbing !important;
+}
+.sortable-drag .drag-handle { cursor: grabbing !important; color: var(--text-primary); }
+
+/* ══════════════════════════════════════════════════════
+   DELETE BUTTON
+   ══════════════════════════════════════════════════════ */
+.delete-btn {
+  width: 28px; height: 28px;
+  border: 1px solid rgba(239,68,68,0.2);
+  border-radius: 7px;
+  background: rgba(239,68,68,0.06);
+  color: rgba(239,68,68,0.5);
+  cursor: pointer;
+  display: none;
+  place-items: center;
+  font-size: 0.78rem;
+  transition: all 0.2s; flex-shrink: 0;
+}
+body.edit-mode .delete-btn { display: grid; }
+.delete-btn:hover {
+  background: rgba(239,68,68,0.18);
+  color: #ef4444;
+  border-color: rgba(239,68,68,0.5);
+  transform: scale(1.1);
+}
+
+/* ══════════════════════════════════════════════════════
+   INLINE RENAME
+   ══════════════════════════════════════════════════════ */
+.topic-name-input {
+  flex: 1;
+  background: var(--bg-card);
+  border: 1px solid var(--c-aptitude);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.9rem; font-weight: 500;
+  padding: 2px 8px;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(167,139,250,0.12);
+}
+
+/* ══════════════════════════════════════════════════════
+   ADD TOPIC MODAL — form elements
+   ══════════════════════════════════════════════════════ */
+.modal-body {
+  display: flex; flex-direction: column; gap: 1rem;
+  margin-bottom: 0;
+  padding: 0.25rem 0;
+}
+
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+
+.form-label {
+  font-size: 0.8rem; font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: inherit; font-size: 0.9rem;
+  transition: border 0.2s, box-shadow 0.2s;
+  outline: none;
+  box-sizing: border-box;
+}
+.form-input:focus {
+  border-color: var(--c-aptitude);
+  box-shadow: 0 0 0 3px rgba(167,139,250,0.1);
+}
+.form-input::placeholder { color: var(--text-muted); }
+.form-select {
+  cursor: pointer;
+  appearance: auto;
+}
+.form-select option { background: #1a1d2e; }
+
+/* ══════════════════════════════════════════════════════
+   MODAL VARIANTS
+   ══════════════════════════════════════════════════════ */
+.modal-sm { max-width: 380px; }
+
+.delete-confirm-text {
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin: 0 0 6px;
+}
+.delete-confirm-sub {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+/* edit mode banner on topic rows */
+body.edit-mode .topic-row {
+  border-left: 2px solid rgba(251,146,60,0.25);
+}
+
+/* ══════════════════════════════════════════════════════
    RESPONSIVE
    ══════════════════════════════════════════════════════ */
 @media (max-width: 640px) {
@@ -692,4 +870,6 @@ body.light .toast {
   .overall-banner { flex-direction: column; align-items: flex-start; }
   .cat-mini-bar-wrap { display: none; }
   .completion-badge { display: none; }
+  .toolbar-actions { width: 100%; justify-content: flex-end; }
 }
+

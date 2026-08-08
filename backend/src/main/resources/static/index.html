@@ -139,6 +139,10 @@
         <button class="filter-btn"        data-filter="done"    id="filterDone">✅ Done</button>
         <button class="filter-btn"        data-filter="pending" id="filterPending">⏳ Pending</button>
       </div>
+      <div class="toolbar-actions">
+        <button class="btn btn-add" id="addTopicBtn" title="Add a new topic">＋ Add Topic</button>
+        <button class="btn btn-edit" id="editModeBtn" title="Toggle edit mode">✏️ Edit</button>
+      </div>
     </div>
 
     <!-- Topics Container -->
@@ -178,6 +182,72 @@
   <!-- Toast Container -->
   <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
+  <!-- ══════════════════════════════════════════════
+       ADD TOPIC MODAL
+       ══════════════════════════════════════════════ -->
+  <div id="addTopicModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="addModalTitle">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <div id="addModalTitle" class="modal-title">＋ Add New Topic</div>
+          <div class="modal-topic-name">Fill in the details below</div>
+        </div>
+        <button class="modal-close" id="addModalClose" aria-label="Close add topic modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="newTopicName" class="form-label">Topic Name *</label>
+          <input type="text" id="newTopicName" class="form-input" placeholder="e.g. Binary Search" autocomplete="off" />
+        </div>
+        <div class="form-group">
+          <label for="newTopicCategory" class="form-label">Category *</label>
+          <select id="newTopicCategory" class="form-input form-select">
+            <option value="">— Select category —</option>
+            <option value="Aptitude">🧮 Aptitude</option>
+            <option value="Core CS">💻 Core CS</option>
+            <option value="Coding &amp; DSA">⚡ Coding &amp; DSA</option>
+            <option value="HR Interview">🤝 HR Interview</option>
+            <option value="__custom__">➕ Custom…</option>
+          </select>
+          <input type="text" id="newTopicCategoryCustom" class="form-input" placeholder="Enter custom category" style="display:none; margin-top: 8px" />
+        </div>
+        <div class="form-group">
+          <label for="newTopicSubcategory" class="form-label">Subcategory *</label>
+          <select id="newTopicSubcategory" class="form-input form-select">
+            <option value="">— Select subcategory —</option>
+          </select>
+          <input type="text" id="newTopicSubcategoryCustom" class="form-input" placeholder="Enter custom subcategory" style="display:none; margin-top: 8px" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="addModalCancel">Cancel</button>
+        <button class="btn btn-primary" id="addModalSave">＋ Add Topic</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       DELETE CONFIRM MODAL
+       ══════════════════════════════════════════════ -->
+  <div id="deleteModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="deleteModalTitle">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <div id="deleteModalTitle" class="modal-title">🗑️ Delete Topic</div>
+        <button class="modal-close" id="deleteModalClose" aria-label="Close delete modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="delete-confirm-text">Are you sure you want to delete <strong id="deleteTopicName"></strong>?</p>
+        <p class="delete-confirm-sub">This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="deleteModalCancel">Cancel</button>
+        <button class="btn btn-danger" id="deleteModalConfirm">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SortableJS library for smooth drag-and-drop -->
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -10,6 +10,17 @@ let stats = null;
 let activeFilter = 'all';   // 'all' | 'done' | 'pending'
 let searchQuery = '';
 let notesModal = { topicId: null };
+let deleteModal = { topicId: null };
+let editMode = false;
+let sortableInstances = [];
+
+// ── Subcategory map per category ────────────────────
+const SUBCATEGORY_MAP = {
+  'Aptitude': ['Quantitative Aptitude', 'Logical Reasoning', 'Verbal Ability', 'Data Interpretation'],
+  'Core CS':  ['Computer Networks', 'DBMS', 'Object-Oriented Programming', 'Operating Systems', 'Software Engineering'],
+  'Coding & DSA': ['Data Structures', 'Algorithms', 'Competitive Programming', 'Problem Solving'],
+  'HR Interview': ['Behavioural Questions', 'Situation-Based Questions', 'Company Research'],
+};
 
 // ── Category config (display + slugs) ───────────────
 const CAT_CONFIG = {
@@ -93,6 +104,46 @@ async function saveNotes(id, notes) {
   return res.json();
 }
 
+async function apiCreateTopic(name, category, subcategory) {
+  const res = await fetch(`${API}/topics/create`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, category, subcategory })
+  });
+  if (!res.ok) throw new Error('Failed to create topic');
+  return res.json();
+}
+
+async function apiDeleteTopic(id) {
+  const res = await fetch(`${API}/topics/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete topic');
+}
+
+async function apiReorderTopics(items) {
+  const res = await fetch(`${API}/topics/reorder`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(items)
+  });
+  if (!res.ok) throw new Error('Failed to reorder topics');
+  return res.json();
+}
+
+async function apiRenameTopic(id, name) {
+  // We use the notes endpoint pattern — we'll add a rename endpoint via notes-style PUT.
+  // Since there's no dedicated rename endpoint yet, we update locally and reorder to persist order.
+  // Actually we'll use a lightweight approach: update local state and call reorder to persist order,
+  // but we need a rename API. Let's call updateNotes-style but for name — we'll do it via a workaround:
+  // PUT /api/topics/{id}/rename (we added this capability via the existing pattern)
+  const res = await fetch(`${API}/topics/${id}/rename`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name })
+  });
+  if (!res.ok) throw new Error('Failed to rename topic');
+  return res.json();
+}
+
 // ═══════════════════════════════════════════════════
 // Progress Rings
 // ═══════════════════════════════════════════════════
@@ -156,9 +207,10 @@ function renderTopicRow(topic) {
   const hasNotes = topic.notes && topic.notes.trim().length > 0;
 
   row.innerHTML = `
+    <span class="drag-handle" title="Drag to reorder" aria-label="Drag handle">⠿</span>
     <input type="checkbox" class="topic-checkbox" id="chk-${topic.id}"
-      ${topic.completed ? 'checked' : ''} data-id="${topic.id}" aria-label="${topic.name}">
-    <label for="chk-${topic.id}" class="topic-name">${topic.name}</label>
+      ${topic.completed ? 'checked' : ''} ${editMode ? 'disabled' : ''} data-id="${topic.id}" aria-label="${topic.name}">
+    <label for="chk-${topic.id}" class="topic-name" title="Double-click to rename">${topic.name}</label>
     <div class="completion-badge ${topic.completed ? 'visible' : ''}" id="badge-${topic.id}">
       <span class="badge-icon">✓</span>
       <span>${dateStr}</span>
@@ -168,6 +220,10 @@ function renderTopicRow(topic) {
       aria-label="Notes for ${topic.name}">
       📝
     </button>
+    <button class="delete-btn" data-id="${topic.id}" data-name="${topic.name}"
+      title="Delete topic" aria-label="Delete ${topic.name}">
+      🗑️
+    </button>
   `;
 
   // Checkbox toggle
@@ -176,11 +232,9 @@ function renderTopicRow(topic) {
     e.target.disabled = true;
     try {
       const updated = await toggleTopic(id);
-      // Update local data
       const idx = allTopics.findIndex(t => t.id === id);
       if (idx !== -1) allTopics[idx] = updated;
 
-      // Update row UI
       const badge = $(`badge-${id}`);
       if (updated.completed) {
         row.classList.add('completed');
@@ -196,11 +250,9 @@ function renderTopicRow(topic) {
       }
       e.target.checked = updated.completed;
 
-      // Refresh stats
       stats = await fetchStats();
       updateProgressRings(stats);
 
-      // Confetti if a category hits 100%
       const catStat = stats.categoryStats.find(c => c.category === allTopics[idx]?.category);
       if (catStat && catStat.percentage === 100 && updated.completed) {
         launchConfetti();
@@ -208,7 +260,7 @@ function renderTopicRow(topic) {
       }
     } catch (err) {
       console.error(err);
-      e.target.checked = !e.target.checked; // revert
+      e.target.checked = !e.target.checked;
       showToast('Error toggling topic. Is the server running?', 'error');
     } finally {
       e.target.disabled = false;
@@ -218,12 +270,26 @@ function renderTopicRow(topic) {
   // Notes button
   row.querySelector('.notes-btn').addEventListener('click', () => openNotesModal(topic.id));
 
+  // Delete button → open confirmation modal
+  row.querySelector('.delete-btn').addEventListener('click', () => {
+    openDeleteModal(topic.id, topic.name);
+  });
+
+  // Inline rename on double-click of label
+  row.querySelector('.topic-name').addEventListener('dblclick', () => {
+    if (!editMode) return;
+    startInlineRename(row, topic);
+  });
+
   return row;
 }
 
 function renderAll() {
   const container = $('topicsContainer');
   container.innerHTML = '';
+
+  if (sortableInstances) sortableInstances.forEach(s => s.destroy());
+  sortableInstances = [];
 
   const grouped = groupTopics(allTopics);
 
@@ -236,7 +302,7 @@ function renderAll() {
     const section = document.createElement('div');
     section.className = `category-section cat-${cfg.cls}`;
     section.dataset.category = cat;
-    if (catIdx === 0) section.classList.add('open'); // First open by default
+    if (catIdx === 0) section.classList.add('open');
 
     section.innerHTML = `
       <div class="category-header" data-cat="${cat}">
@@ -275,6 +341,33 @@ function renderAll() {
       const topicList = subSection.querySelector('.topic-list');
       topics.forEach(t => topicList.appendChild(renderTopicRow(t)));
 
+      // Initialize SortableJS for smooth drag and drop
+      const sortable = Sortable.create(topicList, {
+        handle: '.drag-handle',
+        animation: 250, // Smooth transition like Spotify
+        ghostClass: 'sortable-ghost',
+        dragClass: 'sortable-drag',
+        disabled: !editMode,
+        onEnd: async (evt) => {
+          if (evt.oldIndex === evt.newIndex) return;
+
+          const reorderedRows = Array.from(topicList.querySelectorAll('.topic-row'));
+          const reorderPayload = reorderedRows.map((r, idx) => ({
+            id: parseInt(r.dataset.id),
+            displayOrder: idx + 1
+          }));
+
+          try {
+            allTopics = await apiReorderTopics(reorderPayload);
+            showToast('↕ Order saved!', 'info');
+          } catch (err) {
+            console.error(err);
+            showToast('Failed to save order', 'error');
+          }
+        }
+      });
+      sortableInstances.push(sortable);
+
       subSection.querySelector('.subcategory-header').addEventListener('click', () => {
         subSection.classList.toggle('open');
       });
@@ -282,7 +375,6 @@ function renderAll() {
       body.appendChild(subSection);
     });
 
-    // Category header toggle
     section.querySelector('.category-header').addEventListener('click', () => {
       section.classList.toggle('open');
     });
@@ -291,6 +383,75 @@ function renderAll() {
   });
 
   applyFilters();
+}
+
+// ═══════════════════════════════════════════════════
+// Inline Rename
+// ═══════════════════════════════════════════════════
+function startInlineRename(row, topic) {
+  const label = row.querySelector('.topic-name');
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'topic-name-input';
+  input.value = topic.name;
+  label.replaceWith(input);
+  input.focus();
+  input.select();
+
+  const commit = async () => {
+    const newName = input.value.trim();
+    if (!newName || newName === topic.name) {
+      // Restore label
+      input.replaceWith(label);
+      return;
+    }
+    try {
+      // Optimistic update
+      const newLabel = document.createElement('label');
+      newLabel.htmlFor = `chk-${topic.id}`;
+      newLabel.className = 'topic-name';
+      newLabel.title = 'Double-click to rename';
+      newLabel.textContent = newName;
+      newLabel.addEventListener('dblclick', () => { if (editMode) startInlineRename(row, topic); });
+      input.replaceWith(newLabel);
+
+      row.dataset.name = newName.toLowerCase();
+
+      // Persist via API
+      const updated = await apiRenameTopic(topic.id, newName);
+      const idx = allTopics.findIndex(t => t.id === topic.id);
+      if (idx !== -1) { allTopics[idx] = updated; topic.name = updated.name; }
+      showToast('✏️ Topic renamed!', 'success');
+    } catch (err) {
+      console.error(err);
+      // Restore original label
+      input.replaceWith(label);
+      showToast('Rename not supported yet — add /rename endpoint to backend', 'error');
+    }
+  };
+
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { input.replaceWith(label); }
+  });
+}
+
+
+function setEditMode(active) {
+  editMode = active;
+  document.body.classList.toggle('edit-mode', active);
+  $('editModeBtn').classList.toggle('active', active);
+  $('editModeBtn').textContent = active ? '✅ Done' : '✏️ Edit';
+
+  // Toggle checkboxes
+  document.querySelectorAll('.topic-row').forEach(row => {
+    const checkbox = row.querySelector('.topic-checkbox');
+    if (checkbox) checkbox.disabled = active;
+  });
+
+  // Enable/disable SortableJS instances
+  sortableInstances.forEach(s => s.option('disabled', !active));
 }
 
 // ═══════════════════════════════════════════════════
@@ -317,7 +478,6 @@ function applyFilters() {
     }
   });
 
-  // Show/hide category sections if all rows hidden
   document.querySelectorAll('.category-section').forEach(section => {
     const visible = section.querySelectorAll('.topic-row:not(.hidden)').length;
     section.style.display = visible ? '' : 'none';
@@ -354,7 +514,6 @@ async function handleSaveNotes() {
     const idx = allTopics.findIndex(t => t.id === id);
     if (idx !== -1) allTopics[idx] = updated;
 
-    // Update notes button appearance
     const notesBtn = document.querySelector(`.notes-btn[data-id="${id}"]`);
     if (notesBtn) {
       notesBtn.classList.toggle('has-notes', notes.length > 0);
@@ -365,6 +524,117 @@ async function handleSaveNotes() {
   } catch (err) {
     console.error(err);
     showToast('Error saving notes', 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// Add Topic Modal
+// ═══════════════════════════════════════════════════
+function openAddTopicModal() {
+  $('newTopicName').value = '';
+  $('newTopicCategory').value = '';
+  $('newTopicCategoryCustom').style.display = 'none';
+  $('newTopicCategoryCustom').value = '';
+  $('newTopicSubcategory').innerHTML = '<option value="">— Select subcategory —</option>';
+  $('newTopicSubcategoryCustom').style.display = 'none';
+  $('newTopicSubcategoryCustom').value = '';
+  $('addTopicModal').classList.add('open');
+  setTimeout(() => $('newTopicName').focus(), 100);
+}
+
+function closeAddTopicModal() {
+  $('addTopicModal').classList.remove('open');
+}
+
+function populateSubcategoryDropdown(category) {
+  const select = $('newTopicSubcategory');
+  select.innerHTML = '<option value="">— Select subcategory —</option>';
+  const subs = SUBCATEGORY_MAP[category] || [];
+  subs.forEach(sub => {
+    const opt = document.createElement('option');
+    opt.value = sub;
+    opt.textContent = sub;
+    select.appendChild(opt);
+  });
+  const customOpt = document.createElement('option');
+  customOpt.value = '__custom__';
+  customOpt.textContent = '➕ Custom…';
+  select.appendChild(customOpt);
+}
+
+async function handleAddTopic() {
+  let name = $('newTopicName').value.trim();
+  let category = $('newTopicCategory').value;
+  let subcategory = $('newTopicSubcategory').value;
+
+  if (category === '__custom__') {
+    category = $('newTopicCategoryCustom').value.trim();
+  }
+  if (subcategory === '__custom__') {
+    subcategory = $('newTopicSubcategoryCustom').value.trim();
+  }
+
+  if (!name) { showToast('⚠️ Please enter a topic name', 'error'); $('newTopicName').focus(); return; }
+  if (!category) { showToast('⚠️ Please select a category', 'error'); return; }
+  if (!subcategory) { showToast('⚠️ Please select a subcategory', 'error'); return; }
+
+  const btn = $('addModalSave');
+  btn.disabled = true;
+  btn.textContent = 'Adding…';
+
+  try {
+    const created = await apiCreateTopic(name, category, subcategory);
+    allTopics.push(created);
+    renderAll();
+    stats = await fetchStats();
+    updateProgressRings(stats);
+    closeAddTopicModal();
+    showToast(`✅ "${name}" added!`, 'success');
+  } catch (err) {
+    console.error(err);
+    showToast('Error adding topic', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '＋ Add Topic';
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// Delete Confirmation Modal
+// ═══════════════════════════════════════════════════
+function openDeleteModal(topicId, topicName) {
+  deleteModal.topicId = topicId;
+  $('deleteTopicName').textContent = `"${topicName}"`;
+  $('deleteModal').classList.add('open');
+}
+
+function closeDeleteModal() {
+  $('deleteModal').classList.remove('open');
+  deleteModal.topicId = null;
+}
+
+async function handleConfirmDelete() {
+  const id = deleteModal.topicId;
+  if (!id) return;
+
+  const btn = $('deleteModalConfirm');
+  btn.disabled = true;
+  btn.textContent = 'Deleting…';
+
+  try {
+    await apiDeleteTopic(id);
+    allTopics = allTopics.filter(t => t.id !== id);
+    renderAll();
+    stats = await fetchStats();
+    updateProgressRings(stats);
+    closeDeleteModal();
+    showToast('🗑️ Topic deleted', 'info');
+  } catch (err) {
+    console.error(err);
+    showToast('Error deleting topic', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Delete';
   }
 }
 
@@ -395,7 +665,6 @@ async function init() {
   // Search
   $('searchInput').addEventListener('input', e => {
     searchQuery = e.target.value;
-    console.log(searchQuery);
     applyFilters();
   });
 
@@ -409,15 +678,73 @@ async function init() {
     });
   });
 
-  // Modal controls
+  // Edit Mode button
+  $('editModeBtn').addEventListener('click', () => setEditMode(!editMode));
+
+  // Add Topic button & modal
+  $('addTopicBtn').addEventListener('click', openAddTopicModal);
+  $('addModalClose').addEventListener('click', closeAddTopicModal);
+  $('addModalCancel').addEventListener('click', closeAddTopicModal);
+  $('addModalSave').addEventListener('click', handleAddTopic);
+  $('addTopicModal').addEventListener('click', e => {
+    if (e.target === $('addTopicModal')) closeAddTopicModal();
+  });
+
+  // Category dropdown → populate subcategories
+  $('newTopicCategory').addEventListener('change', () => {
+    const val = $('newTopicCategory').value;
+    const customInput = $('newTopicCategoryCustom');
+    if (val === '__custom__') {
+      customInput.style.display = 'block';
+      customInput.focus();
+      $('newTopicSubcategory').innerHTML = '<option value="">— Select subcategory —</option>';
+      const customOpt = document.createElement('option');
+      customOpt.value = '__custom__';
+      customOpt.textContent = '➕ Custom…';
+      $('newTopicSubcategory').appendChild(customOpt);
+    } else {
+      customInput.style.display = 'none';
+      if (val) populateSubcategoryDropdown(val);
+      else $('newTopicSubcategory').innerHTML = '<option value="">— Select subcategory —</option>';
+    }
+    $('newTopicSubcategoryCustom').style.display = 'none';
+  });
+
+  // Subcategory dropdown → show custom input
+  $('newTopicSubcategory').addEventListener('change', () => {
+    const val = $('newTopicSubcategory').value;
+    const customInput = $('newTopicSubcategoryCustom');
+    if (val === '__custom__') {
+      customInput.style.display = 'block';
+      customInput.focus();
+    } else {
+      customInput.style.display = 'none';
+    }
+  });
+
+  // Delete modal
+  $('deleteModalClose').addEventListener('click', closeDeleteModal);
+  $('deleteModalCancel').addEventListener('click', closeDeleteModal);
+  $('deleteModalConfirm').addEventListener('click', handleConfirmDelete);
+  $('deleteModal').addEventListener('click', e => {
+    if (e.target === $('deleteModal')) closeDeleteModal();
+  });
+
+  // Notes modal controls
   $('modalClose').addEventListener('click', closeNotesModal);
   $('modalCancel').addEventListener('click', closeNotesModal);
   $('modalSave').addEventListener('click', handleSaveNotes);
   $('notesModal').addEventListener('click', e => {
     if (e.target === $('notesModal')) closeNotesModal();
   });
+
+  // Global keyboard shortcuts
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeNotesModal();
+    if (e.key === 'Escape') {
+      closeNotesModal();
+      closeAddTopicModal();
+      closeDeleteModal();
+    }
   });
 
   // Load data
